@@ -207,6 +207,17 @@ deploy_site() {
 		exit 1
 	fi
 
+	# make sure we are deploying to a site that is setup as a java application
+	# i.e. make sure we are _not_ trying to deploy a war to a static site
+	ssh $user@$ip "test -d /opt/tomcat/$site"
+	if [[ $? -ne 0 ]]; then
+		echo "/opt/tomcat/$site not found!"
+		echo 'It looks like that site is not setup to be served by tomcat!'
+		echo 'Nothing deployed, aborting...'
+		echo 'Did you set the site up as a static site?'
+		exit 1
+	fi
+
 	scp $war_filepath $user@$ip:/opt/tomcat/$site/ROOT.war
 }
 
@@ -226,7 +237,6 @@ show_info() {
 	cat <<-.
 		Site: $site
 
-		uploads directory:     /var/www/$site/uploads
 		nginx config file:     /etc/nginx/sites-available/$site
 		deployment git remote: $user@$ip:/srv/$site/repo.git
 
