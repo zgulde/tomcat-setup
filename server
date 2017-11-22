@@ -11,7 +11,7 @@
 ##############################################################################
 
 auto_renew_certs() {
-    ssh -t $user@$ip email=$email "$(< $SCRIPTS/snippets/letsencrypt-cronjob.sh)"
+    ssh -t $user@$ip email=$email "$(< $SNIPPETS/letsencrypt-cronjob.sh)"
     [[ $? -eq 0 ]] && echo 'Autorenewal enabled!'
 }
 
@@ -152,6 +152,7 @@ BASE_DIR="$( cd "$( dirname "$0" )" && pwd )"
 ENV_FILE="$BASE_DIR/.env"
 TEMPLATES="$BASE_DIR/templates"
 SCRIPTS="$BASE_DIR/scripts"
+SNIPPETS="$BASE_DIR/snippets"
 
 if [[ ! -f $ENV_FILE ]]; then
 	echo 'No .env file found!'

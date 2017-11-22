@@ -1,4 +1,5 @@
-# this snippet expects a variable named $email to be set
+# variables
+#	- $email: email address for letsencrypt
 
 # letsencrypt asks us to choose a random minute of the hour to run the renewal
 # job

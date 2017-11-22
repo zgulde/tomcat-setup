@@ -1,3 +1,33 @@
+# variables
+# - $domain: name of the domain we are setting up
+
+read -d '' config_file <<config
+# config for sensitive information file
+#
+# This file needs to define two variables,
+# - source: the file to be copied (e.g. file with database credentials in it)
+# - destination: where to copy it
+# that are referenced in the post-receive hook for this site
+#
+# The source file is relative to this site's directory, and the destination
+# filepath is relative to your project.
+#
+# For example, in a spring boot application, you might have an
+# application.properties file with database credentials in it that is not in
+# version control, but needs to be part of the project. If your site is named
+# example.com, you would create the application.properties file with the live
+# database credentials in /srv/example.com/application.properties.
+#
+# For the scenario described above, uncomment the two lines below
+# source=application.properties
+# destination=src/main/resources/application.properties
+
+# or uncomment the two lines below to define your own file
+# source=
+# destination=
+config
+
+read -d '' git_hook_template <<'githook'
 #!/bin/bash
 
 SITE_DIR=/srv/{{site}}
@@ -90,3 +120,10 @@ fi
 log '--------------------------------------------------'
 log '> All done!'
 log '--------------------------------------------------'
+githook
+
+mkdir /srv/${domain}
+echo $config_file > /srv/${domain}/.config
+git init --bare --shared=group /srv/${domain}/repo.git
+echo $git_hook_template | sed -e s/{{site}}/${domain}/g > /srv/${domain}/repo.git/hooks/post-receive
+chmod +x /srv/${domain}/repo.git/hooks/post-receive

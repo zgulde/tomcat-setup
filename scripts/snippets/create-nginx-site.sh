@@ -1,3 +1,10 @@
+# variables:
+#	- $domain: name of the domain we are setting up
+
+set -e
+set -u
+
+read -d '' template <<'nginx_config'
 # redirect www to non-www
 server {
     listen 80;
@@ -36,4 +43,16 @@ server {
         proxy_pass http://localhost:8080/;
     }
 }
+nginx_config
 
+# make the necessary directories
+sudo mkdir -p /var/www/${domain}/uploads
+sudo chmod g+rw /var/www/${domain}/uploads
+sudo chown -R tomcat:tomcat /var/www/${domain}/uploads
+
+echo "Creating nginx configuration for $domain"
+echo $template | sed -e s/{{domain}}/$domain/g | sudo tee /etc/nginx/sites-available/${domain} >/dev/null
+sudo ln -sf /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}
+
+echo 'Restarting nginx...'
+sudo systemctl restart nginx

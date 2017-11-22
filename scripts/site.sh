@@ -11,33 +11,6 @@ list_sites() {
 	ssh $user@$ip 'ls -1 /etc/nginx/sites-available' | grep -v '^default$'
 }
 
-enable_git_deploment() {
-	domain=$1
-	echo "Setting up git deployment..."
-
-	ssh -t $user@$ip "
-	mkdir /srv/${domain}
-	cat > /srv/${domain}/.config <<'.'
-$(cat $TEMPLATES/.config)
-.
-	git init --bare --shared=group /srv/${domain}/repo.git
-	cat > /srv/${domain}/repo.git/hooks/post-receive <<'.'
-$(sed -e s/{{site}}/$domain/g $TEMPLATES/post-receive.sh)
-.
-	chmod +x /srv/${domain}/repo.git/hooks/post-receive
-	"
-	echo "git deployment configured!"
-	echo "Here is your deployment remote:"
-	echo
-	echo "	$user@$ip:/srv/${domain}/repo.git"
-	echo
-	echo "You can run something like:"
-	echo
-	echo "	git remote add production $user@$ip:/srv/${domain}/repo.git"
-	echo
-	echo "To add the remote."
-}
-
 create_site() {
 	domain=$1
 
@@ -57,39 +30,28 @@ create_site() {
 		echo 'It looks like the dns records for that domain are not setup to'
 		echo 'point to your server.'
 		read -p 'Continue anyway? [y/N] ' confirm
-		grep -i '^y' <<< $confirm || exit 1
+		echo $confirm | grep -i '^y' >/dev/null || exit 1
 	fi
 
-	echo "Setting up ${domain}..."
-
 	ssh -t $user@$ip "
-	set -e
-	# tomcat config
-	echo 'Configuring tomcat...'
-	sudo perl -i -pe 's!^.*--## Virtual Hosts ##--.*\$!$&\n\
-	<Host name=\"${domain}\" appBase=\"${domain}\" unpackWARs=\"true\" autoDeploy=\"true\" />!' \
-		/opt/tomcat/conf/server.xml
-	sudo mkdir -p /opt/tomcat/${domain}
-	sudo chown -R tomcat:tomcat /opt/tomcat/${domain}
-	sudo chmod -R g+w /opt/tomcat/${domain}
-	echo 'Restarting tomcat...'
-	sudo systemctl restart tomcat
-
-	sudo mkdir -p /var/www/${domain}/uploads
-	sudo chmod g+rw /var/www/${domain}/uploads
-	sudo chown -R tomcat:tomcat /var/www/${domain}/uploads
-
-	# nginx config
-	echo 'Configuring nginx...'
-	echo '$(sed -e s/{{domain}}/${domain}/g -e s/{{user}}/${user}/g $TEMPLATES/site.nginx.conf)' |\
-		sudo tee /etc/nginx/sites-available/${domain} >/dev/null
-	sudo ln -s /etc/nginx/sites-available/${domain} /etc/nginx/sites-enabled/${domain}
-	echo 'Restarting nginx...'
-	sudo systemctl restart nginx
+	domain=$domain
+	$(< $SNIPPETS/create-tomcat-site.sh)
+	$(< $SNIPPETS/create-nginx-site.sh)
+	$(< $SNIPPETS/enable-git-deployment.sh)
 	"
-	[[ $? -eq 0 ]] && echo "${domain} created!"
 
-	enable_git_deploment $domain
+	echo "$domain setup!"
+	echo
+	echo "Here is your deployment remote:"
+	echo
+	echo "	$user@$ip:/srv/${domain}/repo.git"
+	echo
+	echo "You can run something like:"
+	echo
+	echo "	git remote add production $user@$ip:/srv/${domain}/repo.git"
+	echo
+	echo "To add the remote."
+
 }
 
 enable_ssl() {
