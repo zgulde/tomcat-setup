@@ -71,7 +71,7 @@ if [[ "$user" == "root" ]]; then
 	echo 'Try running the script again.'
 	exit 1
 fi
-perl -ne 'exit 1 unless /^[a-z][a-z0-9_]{0,29}$/' <<< "$user"
+echo "$user" | perl -ne 'exit 1 unless /^[a-z][a-z0-9_]{0,29}$/'
 if [[ $? -ne 0 ]]; then
 	echo "Ivalid username: '$user'! Aborting..."
 	echo 'Server not setup, and no configuration file created.'
@@ -80,6 +80,14 @@ if [[ $? -ne 0 ]]; then
 	exit 1
 fi
 
+# create the .env file
+cat > $ENV_FILE <<EOF
+ip=$ip
+user=$user
+email=$email
+EOF
+
+echo '".env" file created!'
 echo
 echo 'We will need an email address for obtaining a ssl certificate, while this'
 echo 'is optional, it is recommended so that you can be contacted if anything'
@@ -100,7 +108,7 @@ echo 'These have been saved to "credentials.txt".'
 echo
 echo '+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Warning ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+'
 echo '| For security purposes, it is advised you delete the credentials.txt  |'
-echo '| file and move these into a password manager						  |'
+echo '| file and move these into a password manager                          |'
 echo '+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+'
 echo
 echo 'Next, we will provision the server. Please be patient, as this process'
@@ -108,17 +116,7 @@ echo 'can take a few minutes.'
 echo
 read -p 'Press <Enter> to continue and setup the server'
 
-# create the .env file
-cat > $ENV_FILE <<EOF
-ip=$ip
-user=$user
-email=$email
-EOF
-
-echo '".env" file created!'
-
 heading 'running provision script'
-
 ssh root@$ip bash < $SCRIPTS/provision.sh
 
 # make sure provisioning went okay
@@ -139,7 +137,6 @@ if [[ $? -ne 0 ]]; then
 fi
 
 heading 'securing mysql installation...'
-
 # secure the mysql install
 ssh root@$ip 'mysql -u root' <<sql
 CREATE USER $user@localhost IDENTIFIED BY '$db_password';
@@ -154,7 +151,6 @@ sql
 [[ $? -eq 0 ]] && echo 'MySQL configured!'
 
 heading 'creating user'
-
 ssh root@$ip bash <<setup_user
 # create the git group and directory structure for deployment
 groupadd git

@@ -18,7 +18,6 @@ auto_renew_certs() {
 upload_file() {
 	file=$1
 	destination=$2
-
 	if [[ -z $file ]]; then
 		read -ep 'File to upload: ' file
 		# parse the home directory correctly
@@ -45,6 +44,7 @@ restart_service() {
 	if [[ -z $service_name ]]; then
 		read -p 'service to restart: ' service_name
 	fi
+
 	ssh -t $user@$ip "sudo systemctl restart $service_name"
 	[[ $? -eq 0 ]] && echo "$service_name restarted!"
 }

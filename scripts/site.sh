@@ -22,7 +22,6 @@ ensure_site_exists() {
 
 create_site() {
 	domain=$1
-
 	if [[ -z $domain ]]; then
 		read -p 'Enter the site name without the www: ' domain
 	fi
@@ -60,7 +59,6 @@ create_site() {
 	echo "	git remote add production $user@$ip:/srv/${domain}/repo.git"
 	echo
 	echo "To add the remote."
-
 }
 
 enable_ssl() {
@@ -122,7 +120,6 @@ build_site() {
 	cd /srv/$site/repo.git
 	hooks/post-receive
 	"
-
 }
 
 deploy_site() {
