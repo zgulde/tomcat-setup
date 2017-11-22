@@ -11,6 +11,15 @@ list_sites() {
 	ssh $user@$ip 'ls -1 /etc/nginx/sites-available' | grep -v '^default$'
 }
 
+ensure_site_exists() {
+	site=$1
+	if ! list_sites | grep "^${site}$" >/dev/null ; then
+		echo "It looks like $site is not setup."
+		echo 'Aborting...'
+		exit 1
+	fi
+}
+
 create_site() {
 	domain=$1
 
@@ -60,6 +69,8 @@ enable_ssl() {
 		read -p 'Enter the domain: ' domain
 	fi
 
+	ensure_site_exists $domain
+
 	echo 'Before running this command, make sure that the DNS records for your domain'
 	echo 'are configured to point to your server.'
 	echo 'If they are not properly configured, this command *will* fail.'
@@ -83,17 +94,12 @@ remove_site() {
 
 	# confirm deletion
 	read -p "Are your sure you want to remove $site? [y/N] " confirm
-	echo "$confirm" | grep -i '^y' >/dev/null
-	if [[ $? -ne 0 ]]; then
+	echo ! "$confirm" | grep -i '^y' >/dev/null ; then
 		echo 'site not removed!'
 		exit 1
 	fi
 
-	if ! list_sites | grep "^${site}$" >/dev/null ; then
-		echo "It looks like $site is not setup."
-		echo 'Doing nothing.'
-		exit 1
-	fi
+	ensure_site_exists $site
 
 	ssh -t $user@$ip "
 	domain=$site
@@ -105,17 +111,11 @@ remove_site() {
 
 build_site() {
 	site=$1
-
 	if [[ -z "$site" ]]; then
 		read -p 'Enter the name of the site you wish to trigger a build for: ' site
 	fi
 
-	# ensure site exists
-	list_sites | grep "^$site$" >/dev/null 2>&1
-	if [[ $? -ne 0 ]]; then
-		echo 'That site does not exist!'
-		exit 1
-	fi
+	ensure_site_exists $site
 
 	echo "Running post-receive hook for $site"
 	ssh -t $user@$ip "
@@ -128,11 +128,9 @@ build_site() {
 deploy_site() {
 	site=$1
 	war_filepath="$2"
-
 	if [[ -z "$site" ]]; then
 		read -p 'Enter the name of the site you want to deploy to: ' site
 	fi
-
 	if [[ -z "$war_filepath"  ]]; then
 		read -ep 'Enter the path to the war file: ' war_filepath
 		# parse the home directory correctly
@@ -151,12 +149,7 @@ deploy_site() {
 		exit 1
 	fi
 
-	# ensure site exists
-	list_sites | grep "^$site$" >/dev/null 2>&1
-	if [[ $? -ne 0 ]]; then
-		echo 'That site does not exist!'
-		exit 1
-	fi
+	ensure_site_exists $site
 
 	scp $war_filepath $user@$ip:/opt/tomcat/$site/ROOT.war
 }
@@ -167,12 +160,7 @@ show_info() {
 		read -p 'Site name: ' site
 	fi
 
-	# ensure site exists
-	list_sites | grep "^$site$" >/dev/null 2>&1
-	if [[ $? -ne 0 ]]; then
-		echo 'That site does not exist!'
-		exit 1
-	fi
+	ensure_site_exists $site
 
 	cat <<-.
 		Site: $site
