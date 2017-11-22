@@ -89,24 +89,18 @@ remove_site() {
 		exit 1
 	fi
 
-	ssh -t $user@$ip "
-	ls /etc/nginx/sites-available | grep '^$site$' >/dev/null 2>&1
-	if [[ \$? -ne 0 ]]; then
-		echo 'That site does not exist!'
+	if ! list_sites | grep "^${site}$" >/dev/null ; then
+		echo "It looks like $site is not setup."
+		echo 'Doing nothing.'
 		exit 1
 	fi
 
-	sudo sed -i -e '/${site}/d' /opt/tomcat/conf/server.xml
-
-	sudo rm -f /etc/nginx/sites-available/${site}
-	sudo rm -f /etc/nginx/sites-enabled/${site}
-	sudo rm -rf /opt/tomcat/${site}
-	sudo rm -rf /opt/tomcat/conf/Catalina/${site}
-	sudo rm -rf /var/www/${site}
-	sudo rm -rf /srv/${site}
+	ssh -t $user@$ip "
+	domain=$site
+	$(< $SNIPPETS/remove-site.sh)
 	"
 
-	[[ $? -eq 0 ]] && echo 'site removed!'
+	[[ $? -eq 0 ]] && echo "${domain} removed!"
 }
 
 build_site() {
@@ -142,8 +136,8 @@ deploy_site() {
 	if [[ -z "$war_filepath"  ]]; then
 		read -ep 'Enter the path to the war file: ' war_filepath
 		# parse the home directory correctly
-		if grep '^~' <<< "$war_filepath"; then
-			war_filepath=$(perl -pe "s!~!$HOME!" <<< $war_filepath)
+		if echo "$war_filepath" | grep '^~' ; then
+			war_filepath=$(echo "$war_filepath" | perl -pe "s!~!$HOME!")
 		fi
 	fi
 
@@ -152,8 +146,7 @@ deploy_site() {
 		echo 'It looks like that file does not exist!'
 		exit 1
 	fi
-	grep '\.war$' >/dev/null <<< $war_filepath
-	if [[ $? -ne 0 ]]; then
+	if ! echo "$war_filepath" | grep '\.war$' >/dev/null ; then
 		echo 'must be a valid .war file'
 		exit 1
 	fi
