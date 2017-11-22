@@ -67,20 +67,9 @@ enable_ssl() {
 	read -p 'Press Enter to continue, or Ctrl-C to exit'
 
 	ssh -t $user@$ip "
-	set -e
-	mkdir -p /srv/${domain}
-	sudo letsencrypt certonly\
-		--authenticator webroot\
-		--webroot-path=/var/www/${domain}\
-		--domain ${domain}\
-		--agree-tos\
-		--email $email\
-		--renew-by-default >> /srv/letsencrypt.log
-
-	echo 'Setting up nginx to serve ${domain} over https...'
-	echo '$(sed -e s/{{domain}}/${domain}/g -e s/{{user}}/${user}/g $TEMPLATES/ssl-site.nginx.conf)' |\
-		sudo tee /etc/nginx/sites-available/${domain} >/dev/null
-	sudo systemctl restart nginx
+	domain=$domain
+	email=$email
+	$(< $SNIPPETS/enable-ssl.sh)
 	"
 
 	[[ $? -eq 0 ]] && echo "https enabled for ${domain}!"

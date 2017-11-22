@@ -1,3 +1,11 @@
+# variables
+#	- $domain: the domain to enable ssl for
+#	- $email: email address for letsencrypt
+
+set -e
+set -u
+
+read -d '' nginx_config <<conf
 # redirect non-https to https and www to non-www
 server {
     listen 80;
@@ -41,5 +49,22 @@ server {
         proxy_pass_request_headers on;
         proxy_pass http://localhost:8080/;
     }
-
 }
+conf
+
+# ensure directory exists
+mkdir -p /srv/${domain}
+
+echo "Requesting webroot verification for $domain..."
+sudo letsencrypt certonly\
+	--authenticator webroot\
+	--webroot-path=/var/www/${domain}\
+	--domain ${domain}\
+	--agree-tos\
+	--email $email\
+	--renew-by-default >> /srv/letsencrypt.log
+
+echo "Setting up nginx config to serve ${domain} over https..."
+echo $nginx_config | sed -e s/{{domain}}/${domain}/g | sudo tee /etc/nginx/sites-available/${domain} >/dev/null
+echo 'Restarting nginx...'
+sudo systemctl restart nginx
