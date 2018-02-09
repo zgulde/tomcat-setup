@@ -14,42 +14,52 @@ list_users() {
 }
 
 create_db() {
-	while getopts 'n:u:' opt ; do
-		case $opt in
-			d) db_name=${OPTARG};;
-			u) db_user=${OPTARG};;
-		esac
+	while [[ $# -gt 0 ]] ; do
+	    arg=$1 ; shift
+	    case $arg in
+			-n|--name) dbname=$arg ; shift;;
+			--name=*) dbname=${arg#*=};;
+			-u|--user) dbuser=$arg ; shift;;
+			--user=*) dbuser=${arg#*=};;
+	        *) echo "Unknown argument: $arg" ; exit 1;;
+	    esac
 	done
-	if [[ -z $db_name ]] || [[ -z $db_user ]] ; then
-		echo 'Create a database and user that has permissions only on that database'
-		echo 'You will be prompted to choose a password for the new database user,'
-		echo 'this should be an alphanumeric password.'
-		echo
-		echo '-d <db name>'
-		echo '-u <db user>'
-		echo
-		echo 'Example:'
-		echo "    $(basename $0) db create -d example_db -u example_user"
+	if [[ -z $dbname ]] || [[ -z $dbuser ]] ; then
+		cat <<-.
+		Create a database and user that has permissions only on that database
+		You will be prompted to choose a password for the new database user,
+		this should be an alphanumeric password.
+
+		-n,--name <dbname> -- name of the database to create
+		-u,--user <dbuser> -- name of the user to create
+
+		Example:
+		    $(basename $0) db create -n example_db -u example_user
+		    $(basename $0) db create --name=blog_db --user=blog_user
+		.
 		die
 	fi
 
-	if [[ "$db_pass" != "$confirm_pass" ]]; then
+	read -sp 'Password:' dbpass
+	read -sp 'Confirm Password' confirm_pass
+
+	if [[ "$dbpass" != "$confirm_pass" ]]; then
 		echo 'ERROR: passwords do not match!'
 		exit 1
 	fi
 
 	cat <<-message
 	creating database:
-	    database: $db_name
-	    user:     $db_user
+	    database: $dbname
+	    user:     $dbuser
 
 	When prompted, enter your *database administrator* password to continue
 	message
 
 	ssh -t $user@$ip "mysql -p <<sql
-	CREATE DATABASE IF NOT EXISTS $db_name;
-	CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_pass';
-	GRANT ALL ON ${db_name}.* TO '$db_user'@'localhost';
+	CREATE DATABASE IF NOT EXISTS $dbname;
+	CREATE USER IF NOT EXISTS '$dbuser'@'localhost' IDENTIFIED BY '$dbpass';
+	GRANT ALL ON ${dbname}.* TO '$dbuser'@'localhost';
 	FLUSH PRIVILEGES;
 sql"
 
@@ -57,23 +67,29 @@ sql"
 }
 
 backup_db() {
-	while getopts 'd:f:' opt ; do
-		case $opt in
-			d) database=${OPTARG};;
-			f) outputfile=${OPTARG};;
-		esac
+	while [[ $# -gt 0 ]] ; do
+	    arg=$1 ; shift
+	    case $arg in
+	        -n|--name) database=$arg ; shift;;
+	        --name=*) database=${arg#*=};;
+			-o|--outfile) outputfile=$arg ; shift;;
+			--outfile=*) outputfile=${arg#*=};;
+	        *) echo "Unknown argument: $arg" ; exit 1;;
+	    esac
 	done
 	if [[ -z $database ]]; then
-		echo 'Create a backup of a database. Optionally specify a filename to save'
-		echo 'the backup to. Will default to a file with the current time and the database'
-		echo "name inside of '$BASE_DIR/db-backups'"
-		echo
-		echo '-d <database>'
-		echo '-f <outputfile> (optional)'
-		echo
-		echo 'Examples:'
-		echo "    $(basename $0) db backup -d example_db"
-		echo "    $(basename $0) db backup -d example_db -f ~/my-db-dump.sql"
+		cat <<-.
+		Create a backup of a database. Optionally specify a filename to save the
+		backup to. Will default to a file with the current time and the database
+		name inside of $BASE_DIR/db-backups
+
+		-n,--name    <database>   -- name of the database to backup
+		-o,--outfile <outputfile> -- (optional) file to store the backup in
+
+		Examples:
+		    $(basename $0) db backup -d example_db
+		    $(basename $0) db backup --name=blog_db --outfile=~/blog_db-dump.sql
+		.
 		die
 	fi
 	if [[ -z $outputfile ]]; then
@@ -88,6 +104,16 @@ backup_db() {
 }
 
 remove_db() {
+	while [[ $# -gt 0 ]] ; do
+	    arg=$1 ; shift
+	    case $arg in
+	        -n|--name) db_name=$arg ; shift;;
+	        --name=*) db_name=${arg#*=};;
+			-u|--user) db_user=$arg ; shift;;
+			--user=*) db_user=${arg#*=};;
+	        *) echo "Unknown argument: $arg" ; exit 1;;
+	    esac
+	done
 	while getopts 'd:u:' opt ; do
 		case $opt in
 			d) db_name=${OPTARG};;
@@ -95,13 +121,16 @@ remove_db() {
 		esac
 	done
 	if [[ -z $db_name ]] || [[ -z $db_user ]] ; then
-		echo 'Remove a database and database user'
-		echo
-		echo '-d <database>'
-		echo '-u <username>'
-		echo
-		echo 'Example:'
-		echo "    $(basename $0) db remove -d example_db -u example_user"
+		cat <<-.
+		Remove a database and database user
+
+		-d <database> -- name of the database to remove
+		-u <username> -- name of the database user to remove
+
+		Examples:
+		    $(basename $0) db rm -n example_db -u example_user
+		    $(basename $0) db remove --name=blog_db --user=blog_user
+		.
 		die
 	fi
 
@@ -125,9 +154,9 @@ show_usage() {
 
 	    login
 	    list
-	    create -d <dbname> -u <user>
-	    remove -d <dbname> -u <user>
-	    backup -d <dbname> [-f <outputfile>]
+	    create -n <dbname> -u <user>
+	    remove -n <dbname> -u <user>
+	    backup -n <dbname> [-f <outputfile>]
 
 	help_message
 }
