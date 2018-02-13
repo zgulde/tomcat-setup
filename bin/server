@@ -226,10 +226,13 @@ show_usage() {
 # find out where this script is located so we can be sure we're running
 # everything from the correct location
 SCRIPT_PATH=$0
-while [[ -L $SCRIPT_PATH ]] ; do # resolve symlinks
-	SCRIPT_PATH="$(readlink $SCRIPT_PATH)"
-done
-BASE_DIR="$( cd "$( dirname "$SCRIPT_PATH" )" && pwd )"
+# I'd really rather not do this with python, but we need to find the
+# installation location if this script is symlinked, and this is the only way
+# that works between both MacOS and (probably most) Linuxes (assuming a python).
+# The inline python code does work on both python2 and python3
+which python >/dev/null && PYTHON=python || PYTHON=python3
+SCRIPT_PATH="$($PYTHON -c "import os; print(os.path.realpath('$SCRIPT_PATH'))")"
+BASE_DIR="$(dirname "$(dirname $SCRIPT_PATH)")"
 
 ENV_FILE="$BASE_DIR/.env"
 TEMPLATES="$BASE_DIR/templates"
